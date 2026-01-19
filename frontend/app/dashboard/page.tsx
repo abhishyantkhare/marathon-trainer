@@ -58,8 +58,12 @@ export default function Dashboard() {
   }, []);
 
   const formatDistance = (meters: number) => {
-    const km = meters / 1000;
-    return `${km.toFixed(1)} km`;
+    const miles = meters / 1609.344;
+    return `${miles.toFixed(1)} mi`;
+  };
+
+  const formatMiles = (miles: number) => {
+    return miles.toFixed(1);
   };
 
   const formatTime = (seconds: number) => {
@@ -163,14 +167,14 @@ export default function Dashboard() {
                     </div>
                     {workout.distance_km && (
                       <div className="mt-2 text-sm font-semibold text-gray-900">
-                        {workout.distance_km} km
+                        {formatMiles(workout.distance_km)} mi
                       </div>
                     )}
                   </div>
                 ))}
               </div>
               <div className="mt-4 text-sm text-gray-600">
-                Weekly total: <span className="font-semibold">{currentWeek.total_distance_km} km</span>
+                Weekly total: <span className="font-semibold">{formatMiles(currentWeek.total_distance_km)} mi</span>
               </div>
             </div>
           )}

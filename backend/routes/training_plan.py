@@ -45,8 +45,8 @@ async def generate_plan(
             return TrainingPlanResponse(
                 id=existing_plan.id,
                 plan=TrainingPlanData(**plan_data),
-                created_at=existing_plan.created_at,
-                updated_at=existing_plan.updated_at,
+                created_at=existing_plan.created_at.isoformat(),
+                updated_at=existing_plan.updated_at.isoformat(),
             )
 
     try:
@@ -69,8 +69,8 @@ async def generate_plan(
         return TrainingPlanResponse(
             id=plan.id,
             plan=TrainingPlanData(**plan_data),
-            created_at=plan.created_at,
-            updated_at=plan.updated_at,
+            created_at=plan.created_at.isoformat(),
+            updated_at=plan.updated_at.isoformat(),
         )
 
     except Exception as e:
@@ -104,6 +104,6 @@ async def get_training_plan(
     return TrainingPlanResponse(
         id=plan.id,
         plan=TrainingPlanData(**plan_data),
-        created_at=plan.created_at,
-        updated_at=plan.updated_at,
+        created_at=plan.created_at.isoformat(),
+        updated_at=plan.updated_at.isoformat(),
     )

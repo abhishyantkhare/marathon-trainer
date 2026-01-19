@@ -50,8 +50,8 @@ export default function RunsPage() {
   };
 
   const formatDistance = (meters: number) => {
-    const km = meters / 1000;
-    return `${km.toFixed(2)} km`;
+    const miles = meters / 1609.344;
+    return `${miles.toFixed(2)} mi`;
   };
 
   const formatTime = (seconds: number) => {

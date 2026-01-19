@@ -1,11 +1,39 @@
 import json
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel
 from openai import AsyncOpenAI
 from models import FitnessLevel
 from config import get_settings
 
 settings = get_settings()
+
+
+class Workout(BaseModel):
+    day: str
+    workout_type: str
+    description: str
+    distance_km: Optional[float]
+    pace_target: Optional[str]
+    notes: Optional[str]
+
+
+class TrainingWeek(BaseModel):
+    week_number: int
+    start_date: str
+    end_date: str
+    theme: str
+    total_distance_km: float
+    workouts: List[Workout]
+
+
+class TrainingPlan(BaseModel):
+    race_name: str
+    race_date: str
+    goal_time: str
+    total_weeks: int
+    weeks: List[TrainingWeek]
+    notes: str
 
 
 def format_goal_time(minutes: int) -> str:
@@ -17,11 +45,11 @@ def format_goal_time(minutes: int) -> str:
 
 def get_target_paces(goal_time_minutes: int) -> Dict[str, str]:
     """Calculate target paces based on goal marathon time."""
-    # Marathon distance in km
-    marathon_km = 42.195
+    # Marathon distance in miles
+    marathon_miles = 26.2188
 
-    # Goal pace in seconds per km
-    goal_pace_sec = (goal_time_minutes * 60) / marathon_km
+    # Goal pace in seconds per mile
+    goal_pace_sec = (goal_time_minutes * 60) / marathon_miles
 
     # Different training paces (as percentage of goal pace)
     paces = {
@@ -32,12 +60,12 @@ def get_target_paces(goal_time_minutes: int) -> Dict[str, str]:
         "race": goal_pace_sec,
     }
 
-    # Convert to MM:SS format
+    # Convert to MM:SS format per mile
     formatted = {}
     for pace_type, seconds in paces.items():
         mins = int(seconds // 60)
         secs = int(seconds % 60)
-        formatted[pace_type] = f"{mins}:{secs:02d}/km"
+        formatted[pace_type] = f"{mins}:{secs:02d}/mi"
 
     return formatted
 
@@ -59,11 +87,11 @@ async def generate_training_plan(
     paces = get_target_paces(goal_time_minutes)
     goal_time_str = format_goal_time(goal_time_minutes)
 
-    # Weekly mileage recommendations based on fitness level
+    # Weekly mileage recommendations based on fitness level (in miles)
     mileage_guide = {
-        FitnessLevel.beginner: {"start": 25, "peak": 55, "taper": 30},
-        FitnessLevel.intermediate: {"start": 40, "peak": 75, "taper": 40},
-        FitnessLevel.advanced: {"start": 55, "peak": 100, "taper": 50},
+        FitnessLevel.beginner: {"start": 15, "peak": 35, "taper": 20},
+        FitnessLevel.intermediate: {"start": 25, "peak": 45, "taper": 25},
+        FitnessLevel.advanced: {"start": 35, "peak": 60, "taper": 30},
     }
 
     mileage = mileage_guide[fitness_level]
@@ -84,9 +112,11 @@ Target Paces:
 - Race pace: {paces['race']}
 
 Weekly Mileage Guidelines:
-- Starting: ~{mileage['start']}km/week
-- Peak (around week {max(1, weeks_until_race - 3)}): ~{mileage['peak']}km/week
-- Taper (final 2-3 weeks): ~{mileage['taper']}km/week
+- Starting: ~{mileage['start']} miles/week
+- Peak (around week {max(1, weeks_until_race - 3)}): ~{mileage['peak']} miles/week
+- Taper (final 2-3 weeks): ~{mileage['taper']} miles/week
+
+IMPORTANT: All distances should be in MILES, and all paces should be in minutes per MILE (e.g., "8:30/mi").
 
 Generate a JSON object with this exact structure:
 {{
@@ -100,7 +130,7 @@ Generate a JSON object with this exact structure:
       "start_date": "YYYY-MM-DD",
       "end_date": "YYYY-MM-DD",
       "theme": "Base Building",
-      "total_distance_km": 35.0,
+      "total_distance_km": 22.0,
       "workouts": [
         {{
           "day": "Monday",
@@ -114,7 +144,7 @@ Generate a JSON object with this exact structure:
           "day": "Tuesday",
           "workout_type": "easy_run",
           "description": "Easy aerobic run",
-          "distance_km": 8.0,
+          "distance_km": 5.0,
           "pace_target": "{paces['easy']}",
           "notes": "Keep heart rate in zone 2"
         }}
@@ -125,6 +155,8 @@ Generate a JSON object with this exact structure:
   ],
   "notes": "General training notes and advice"
 }}
+
+NOTE: The field is called "distance_km" but use MILES for all values. The field name is kept for compatibility.
 
 Workout types: easy_run, tempo, long_run, intervals, rest, cross_training
 
@@ -142,34 +174,26 @@ Return ONLY valid JSON, no additional text or markdown."""
     client = AsyncOpenAI(api_key=settings.openai_api_key)
 
     try:
-        response = await client.chat.completions.create(
+        response = await client.beta.chat.completions.parse(
             model="gpt-4o",
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert marathon running coach. Generate detailed, scientifically-backed training plans in JSON format. Always return valid JSON only.",
+                    "content": "You are an expert marathon running coach. Generate detailed, scientifically-backed training plans.",
                 },
                 {"role": "user", "content": prompt},
             ],
             temperature=0.7,
-            max_tokens=8000,
+            max_tokens=16384,
+            response_format=TrainingPlan,
         )
 
-        content = response.choices[0].message.content
+        plan = response.choices[0].message.parsed
+        return plan.model_dump()
 
-        # Clean up the response (remove markdown code blocks if present)
-        if content.startswith("```"):
-            lines = content.split("\n")
-            content = "\n".join(lines[1:-1])
-
-        plan = json.loads(content)
-        return plan
-
-    except json.JSONDecodeError as e:
-        # Fallback to a basic template if JSON parsing fails
-        return generate_fallback_plan(race_date, goal_time_minutes, weeks_until_race, paces)
     except Exception as e:
-        raise Exception(f"Failed to generate training plan: {str(e)}")
+        print(f"OpenAI API error: {str(e)}")
+        return generate_fallback_plan(race_date, goal_time_minutes, weeks_until_race, paces)
 
 
 def generate_fallback_plan(
@@ -187,23 +211,20 @@ def generate_fallback_plan(
         week_start = today + timedelta(weeks=week_num - 1)
         week_end = week_start + timedelta(days=6)
 
-        # Determine week theme
+        # Determine week theme (distances in miles)
         if week_num <= weeks // 3:
             theme = "Base Building"
-            base_km = 35
         elif week_num <= weeks - 3:
             theme = "Build Phase"
-            base_km = 50
         elif week_num == weeks:
             theme = "Race Week"
-            base_km = 20
         else:
             theme = "Taper"
-            base_km = 35
 
         # Adjust for progression
         multiplier = min(1.0 + (week_num - 1) * 0.05, 1.5) if week_num <= weeks - 3 else 0.6
 
+        # Distances in miles
         workouts = [
             {
                 "day": "Monday",
@@ -217,7 +238,7 @@ def generate_fallback_plan(
                 "day": "Tuesday",
                 "workout_type": "easy_run",
                 "description": "Easy run",
-                "distance_km": round(8 * multiplier, 1),
+                "distance_km": round(5 * multiplier, 1),
                 "pace_target": paces["easy"],
                 "notes": None,
             },
@@ -225,7 +246,7 @@ def generate_fallback_plan(
                 "day": "Wednesday",
                 "workout_type": "tempo" if week_num % 2 == 0 else "intervals",
                 "description": "Quality workout",
-                "distance_km": round(10 * multiplier, 1),
+                "distance_km": round(6 * multiplier, 1),
                 "pace_target": paces["tempo"] if week_num % 2 == 0 else paces["intervals"],
                 "notes": "Key workout of the week",
             },
@@ -233,7 +254,7 @@ def generate_fallback_plan(
                 "day": "Thursday",
                 "workout_type": "easy_run",
                 "description": "Recovery run",
-                "distance_km": round(6 * multiplier, 1),
+                "distance_km": round(4 * multiplier, 1),
                 "pace_target": paces["easy"],
                 "notes": None,
             },
@@ -249,7 +270,7 @@ def generate_fallback_plan(
                 "day": "Saturday",
                 "workout_type": "easy_run",
                 "description": "Easy run",
-                "distance_km": round(8 * multiplier, 1),
+                "distance_km": round(5 * multiplier, 1),
                 "pace_target": paces["easy"],
                 "notes": None,
             },
@@ -257,7 +278,7 @@ def generate_fallback_plan(
                 "day": "Sunday",
                 "workout_type": "long_run",
                 "description": "Long run",
-                "distance_km": round(18 * multiplier, 1),
+                "distance_km": round(12 * multiplier, 1),
                 "pace_target": paces["long_run"],
                 "notes": "Build endurance",
             },

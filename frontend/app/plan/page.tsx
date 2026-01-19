@@ -67,6 +67,18 @@ export default function PlanPage() {
     setExpandedWeeks(new Set());
   };
 
+  const formatMiles = (miles: number) => {
+    return miles.toFixed(1);
+  };
+
+  const safeFormatDate = (dateStr: string, formatStr: string) => {
+    try {
+      return format(parseISO(dateStr), formatStr);
+    } catch {
+      return dateStr;
+    }
+  };
+
   const getWorkoutTypeColor = (type: string) => {
     switch (type) {
       case 'easy_run':
@@ -144,7 +156,7 @@ export default function PlanPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{plan.plan.race_name} Training Plan</h1>
               <p className="text-gray-600">
-                {plan.plan.total_weeks} weeks • Goal: {plan.plan.goal_time} • Race: {format(parseISO(plan.plan.race_date), 'MMMM d, yyyy')}
+                {plan.plan.total_weeks} weeks • Goal: {plan.plan.goal_time} • Race: {safeFormatDate(plan.plan.race_date, 'MMMM d, yyyy')}
               </p>
             </div>
             <div className="flex gap-2">
@@ -200,10 +212,10 @@ export default function PlanPage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-500">
-                      {format(parseISO(week.start_date), 'MMM d')} - {format(parseISO(week.end_date), 'MMM d')}
+                      {safeFormatDate(week.start_date, 'MMM d')} - {safeFormatDate(week.end_date, 'MMM d')}
                     </span>
                     <span className="text-sm font-medium text-gray-700">
-                      {week.total_distance_km} km
+                      {formatMiles(week.total_distance_km)} mi
                     </span>
                     <svg
                       className={`w-5 h-5 text-gray-400 transition-transform ${
@@ -241,7 +253,7 @@ export default function PlanPage() {
                           <div className="text-right ml-4">
                             {workout.distance_km && (
                               <div className="font-semibold text-gray-900">
-                                {workout.distance_km} km
+                                {formatMiles(workout.distance_km)} mi
                               </div>
                             )}
                             {workout.pace_target && (
@@ -269,7 +281,7 @@ export default function PlanPage() {
 
           {/* Plan Metadata */}
           <div className="text-sm text-gray-500 text-center">
-            Plan generated on {format(parseISO(plan.created_at), 'MMMM d, yyyy \'at\' h:mm a')}
+            Plan generated on {safeFormatDate(plan.created_at, 'MMMM d, yyyy \'at\' h:mm a')}
           </div>
         </div>
       )}
