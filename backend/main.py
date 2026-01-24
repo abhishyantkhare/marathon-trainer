@@ -1,3 +1,4 @@
+# Redeployed to fix CORS configuration - 2026-01-24
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
