@@ -43,7 +43,7 @@ async function fetchApi<T>(endpoint: string, options: FetchOptions = {}): Promis
 
 // Auth API
 export const authApi = {
-  getMe: () => fetchApi<User>('/auth/me'),
+  getMe: () => fetchApi<User>('/auth/me', { requireAuth: false }),
   logout: () => fetchApi<{ message: string }>('/auth/logout', { method: 'POST' }),
   getStravaAuthUrl: () => `${API_BASE_URL}/auth/strava`,
 };

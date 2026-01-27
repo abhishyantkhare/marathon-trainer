@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -10,9 +10,11 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 export default function Home() {
   const router = useRouter();
   const { isLoading, isAuthenticated, user } = useAuth();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
+      setIsRedirecting(true);
       if (user?.has_profile) {
         router.push('/dashboard');
       } else {
@@ -25,18 +27,11 @@ export default function Home() {
     window.location.href = `${API_BASE_URL}/auth/strava`;
   };
 
-  if (isLoading) {
+  // Show loading on same background as landing page to prevent flash
+  if (isLoading || isRedirecting) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <LoadingSpinner size="lg" message="Loading..." />
-      </div>
-    );
-  }
-
-  if (isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <LoadingSpinner size="lg" message="Redirecting..." />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100">
+        <LoadingSpinner size="lg" message={isRedirecting ? "Redirecting..." : "Loading..."} />
       </div>
     );
   }

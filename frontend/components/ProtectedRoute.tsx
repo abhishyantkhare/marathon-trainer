@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import Navbar from './Navbar';
@@ -14,31 +14,27 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children, requireProfile = true }: ProtectedRouteProps) {
   const router = useRouter();
   const { user, isLoading, isAuthenticated, logout } = useAuth();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     if (!isLoading) {
       if (!isAuthenticated) {
+        setIsRedirecting(true);
         router.push('/');
       } else if (requireProfile && user && !user.has_profile) {
+        setIsRedirecting(true);
         router.push('/onboarding');
       }
     }
   }, [isLoading, isAuthenticated, user, requireProfile, router]);
 
-  if (isLoading) {
+  // Show loading state while checking auth or redirecting
+  if (isLoading || isRedirecting || !isAuthenticated || (requireProfile && user && !user.has_profile)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <LoadingSpinner size="lg" message="Loading..." />
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return null;
-  }
-
-  if (requireProfile && user && !user.has_profile) {
-    return null;
   }
 
   return (

@@ -12,6 +12,7 @@ type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
 export default function Onboarding() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated, refresh } = useAuth();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const [raceDate, setRaceDate] = useState('');
   const [goalHours, setGoalHours] = useState('4');
@@ -22,8 +23,10 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
+      setIsRedirecting(true);
       router.push('/');
     } else if (!authLoading && user?.has_profile) {
+      setIsRedirecting(true);
       router.push('/dashboard');
     }
   }, [authLoading, isAuthenticated, user, router]);
@@ -64,9 +67,10 @@ export default function Onboarding() {
     }
   };
 
-  if (authLoading) {
+  // Show loading with consistent background during auth check or redirect
+  if (authLoading || isRedirecting) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100">
         <LoadingSpinner size="lg" message="Loading..." />
       </div>
     );
