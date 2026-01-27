@@ -1,3 +1,9 @@
+/**
+ * API client for Marathon Trainer backend
+ *
+ * Environment Variables:
+ * - NEXT_PUBLIC_API_URL: Backend API URL (defaults to http://localhost:8000 for local dev)
+ */
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface FetchOptions extends RequestInit {
