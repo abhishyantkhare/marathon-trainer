@@ -1,4 +1,21 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+/**
+ * Get the API base URL, with support for Vercel preview environments.
+ *
+ * In preview deployments (NEXT_PUBLIC_VERCEL_TARGET_ENV === "preview"),
+ * use the preview backend URL set by the GitHub Actions workflow.
+ * Otherwise, fall back to the standard NEXT_PUBLIC_API_URL or localhost.
+ */
+const getApiBaseUrl = (): string => {
+  const isPreview = process.env.NEXT_PUBLIC_VERCEL_TARGET_ENV === "preview";
+
+  if (isPreview && process.env.NEXT_PUBLIC_PREVIEW_BACKEND_URL) {
+    return process.env.NEXT_PUBLIC_PREVIEW_BACKEND_URL;
+  }
+
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 interface FetchOptions extends RequestInit {
   requireAuth?: boolean;

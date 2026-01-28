@@ -1,0 +1,27 @@
+name: Delete Vercel Preview Environment
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  delete-preview-env:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Delete preview environment variable
+        env:
+          COFOUNDER_VERCEL_TOKEN: ${{ secrets.COFOUNDER_VERCEL_TOKEN }}
+          BRANCH_NAME: ${{ github.head_ref }}
+          FRONTEND_PROJECT_NAME: "marathon-trainer-frontend"
+        run: python scripts/delete_vercel_preview_env.py
