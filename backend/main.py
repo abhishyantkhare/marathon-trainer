@@ -27,9 +27,14 @@ app = FastAPI(
 )
 
 # CORS middleware
+# Use allow_origin_regex to support both static origins and Vercel preview deployments
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:3000"],
+    allow_origin_regex=(
+        r"^https?://localhost(:\d+)?$"  # Local development
+        r"|^" + settings.frontend_url.replace(".", r"\.") + r"$"  # Production frontend
+        r"|^https://marathon-trainer-frontend-[^.]+\.vercel\.app$"  # Vercel preview deployments
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

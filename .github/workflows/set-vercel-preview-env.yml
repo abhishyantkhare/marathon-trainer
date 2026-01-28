@@ -1,0 +1,38 @@
+# GitHub Actions workflow to set Vercel preview environment variable
+#
+# This workflow runs when a PR is opened/synchronized and:
+# 1. Gets the backend preview deployment URL for the PR branch
+# 2. Sets NEXT_PUBLIC_API_URL_{branch} on the frontend Vercel project
+# 3. Triggers a frontend redeploy (handled by the script) so the new env var is applied
+#
+# Required secrets:
+# - COFOUNDER_VERCEL_TOKEN: Vercel API token with permissions to manage env vars
+
+name: Set Vercel Preview Env
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  set-preview-env:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Set Vercel preview environment variable
+        env:
+          COFOUNDER_VERCEL_TOKEN: ${{ secrets.COFOUNDER_VERCEL_TOKEN }}
+          BRANCH_NAME: ${{ github.head_ref }}
+          BACKEND_PROJECT_NAME: "marathon-trainer-backend"
+          FRONTEND_PROJECT_NAME: "marathon-trainer-frontend"
+        run: python scripts/set_vercel_preview_env.py
