@@ -1,0 +1,28 @@
+name: Set Vercel Preview Environment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  set-preview-env:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Set Vercel preview environment variable
+        env:
+          COFOUNDER_VERCEL_TOKEN: ${{ secrets.COFOUNDER_VERCEL_TOKEN }}
+          BRANCH_NAME: ${{ github.head_ref }}
+          BACKEND_PROJECT_NAME: "marathon-trainer-api"
+          FRONTEND_PROJECT_NAME: "marathon-trainer-frontend"
+        run: python scripts/set_vercel_preview_env.py

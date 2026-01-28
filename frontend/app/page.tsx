@@ -5,7 +5,19 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+/**
+ * Get the API base URL, using preview backend URL in preview deployments.
+ * Falls back to NEXT_PUBLIC_API_URL for staging/prod or localhost for dev.
+ */
+function getApiBaseUrl(): string {
+  const isPreview = process.env.NEXT_PUBLIC_VERCEL_TARGET_ENV === "preview";
+  if (isPreview && process.env.NEXT_PUBLIC_PREVIEW_BACKEND_URL) {
+    return process.env.NEXT_PUBLIC_PREVIEW_BACKEND_URL;
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export default function Home() {
   const router = useRouter();
