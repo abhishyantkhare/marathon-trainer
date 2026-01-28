@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { authApi } from '@/lib/api';
 import LoadingSpinner from '@/components/LoadingSpinner';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function Home() {
   const router = useRouter();
@@ -24,7 +23,7 @@ export default function Home() {
   }, [isLoading, isAuthenticated, user, router]);
 
   const handleStravaLogin = () => {
-    window.location.href = `${API_BASE_URL}/auth/strava`;
+    window.location.href = authApi.getStravaAuthUrl();
   };
 
   // Show loading on same background as landing page to prevent flash

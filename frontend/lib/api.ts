@@ -1,4 +1,18 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+/**
+ * Get the API base URL, using preview backend URL in preview deployments.
+ *
+ * In preview deployments, the GitHub Actions workflow sets
+ * NEXT_PUBLIC_PREVIEW_BACKEND_URL pointing to the backend preview deployment.
+ */
+function getApiBaseUrl(): string {
+  const isPreview = process.env.NEXT_PUBLIC_VERCEL_TARGET_ENV === "preview";
+  if (isPreview && process.env.NEXT_PUBLIC_PREVIEW_BACKEND_URL) {
+    return process.env.NEXT_PUBLIC_PREVIEW_BACKEND_URL;
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 interface FetchOptions extends RequestInit {
   requireAuth?: boolean;
@@ -41,11 +55,29 @@ async function fetchApi<T>(endpoint: string, options: FetchOptions = {}): Promis
   return response.json();
 }
 
+/**
+ * Get the current browser origin (works in preview deployments).
+ * This is passed to the backend so it knows where to redirect after auth.
+ */
+function getClientOrigin(): string {
+  if (typeof window === "undefined") return "";
+  return window.location.origin;
+}
+
+/**
+ * Get the Strava auth URL with return_to parameter for preview support.
+ * The backend uses return_to to redirect back to the correct frontend origin.
+ */
+function getStravaAuthUrl(): string {
+  const returnTo = encodeURIComponent(getClientOrigin());
+  return `${API_BASE_URL}/auth/strava?return_to=${returnTo}`;
+}
+
 // Auth API
 export const authApi = {
   getMe: () => fetchApi<User>('/auth/me', { requireAuth: false }),
   logout: () => fetchApi<{ message: string }>('/auth/logout', { method: 'POST' }),
-  getStravaAuthUrl: () => `${API_BASE_URL}/auth/strava`,
+  getStravaAuthUrl,
 };
 
 // Profile API

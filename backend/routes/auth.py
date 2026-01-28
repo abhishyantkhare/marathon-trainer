@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from urllib.parse import quote, unquote
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -17,34 +19,90 @@ STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
 STRAVA_ATHLETE_URL = "https://www.strava.com/api/v3/athlete"
 
 
+def get_backend_url(request: Request) -> str:
+    """Derive backend URL from request headers.
+
+    This works correctly in Vercel preview deployments where the
+    host header contains the preview URL.
+    """
+    proto = request.headers.get("x-forwarded-proto", "https")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host", "")
+
+    if not host:
+        return settings.strava_redirect_uri.rsplit("/auth/", 1)[0]
+
+    return f"{proto}://{host}"
+
+
 @router.get("/strava")
-async def strava_login():
-    """Redirect to Strava OAuth authorization page."""
+async def strava_login(
+    request: Request,
+    return_to: str = Query(
+        default=None, description="Frontend URL to redirect to after auth"
+    ),
+):
+    """Redirect to Strava OAuth authorization page.
+
+    Args:
+        return_to: Frontend origin to redirect to after auth completes.
+            Used in preview deployments to redirect back to the correct frontend.
+    """
     if not settings.strava_client_id:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Strava client ID not configured"
         )
 
+    # Use provided return_to or fall back to default frontend URL
+    frontend_url = return_to or settings.frontend_url
+
+    # Store frontend_url in state parameter (will be returned in callback)
+    state = quote(frontend_url)
+
+    # Build the OAuth redirect_uri pointing back to THIS backend
+    # Using get_backend_url() ensures it works in preview deployments
+    backend_url = get_backend_url(request)
+    redirect_uri = f"{backend_url}/auth/strava/callback"
+
     params = {
         "client_id": settings.strava_client_id,
         "response_type": "code",
-        "redirect_uri": settings.strava_redirect_uri,
+        "redirect_uri": redirect_uri,
         "scope": "read,activity:read_all,profile:read_all",
         "approval_prompt": "auto",
+        "state": state,
     }
     auth_url = f"{STRAVA_AUTH_URL}?{'&'.join(f'{k}={v}' for k, v in params.items())}"
     return RedirectResponse(url=auth_url)
 
 
 @router.get("/strava/callback")
-async def strava_callback(code: str, db: AsyncSession = Depends(get_db)):
-    """Handle Strava OAuth callback, create/update user, return JWT."""
+async def strava_callback(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    state: str = Query(default="", description="State containing frontend URL"),
+):
+    """Handle Strava OAuth callback, create/update user, return JWT.
+
+    Args:
+        code: Authorization code from Strava to exchange for tokens.
+        state: State parameter containing the frontend URL to redirect to.
+    """
     if not settings.strava_client_id or not settings.strava_client_secret:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Strava credentials not configured"
         )
+
+    # Extract frontend URL from state
+    frontend_url = settings.frontend_url
+    if state:
+        try:
+            decoded_state = unquote(state)
+            if decoded_state.startswith("http"):
+                frontend_url = decoded_state
+        except Exception:
+            pass
 
     # Exchange code for access token
     async with httpx.AsyncClient() as client:
@@ -103,12 +161,13 @@ async def strava_callback(code: str, db: AsyncSession = Depends(get_db)):
     jwt_token = create_access_token(user.id)
 
     # Redirect to frontend with token in cookie
-    response = RedirectResponse(url=f"{settings.frontend_url}/auth/callback")
+    # Use the frontend_url from state (supports preview deployments)
+    response = RedirectResponse(url=f"{frontend_url}/auth/callback")
     response.set_cookie(
         key="access_token",
         value=jwt_token,
         httponly=True,
-        secure=False,  # Set to True in production with HTTPS
+        secure=True,  # Always use secure cookies in production
         samesite="lax",
         max_age=settings.jwt_expiration_hours * 3600,
     )
