@@ -1,0 +1,35 @@
+# GitHub Actions workflow to delete Vercel preview environment variable
+#
+# This workflow runs when a PR is closed (merged or abandoned) and:
+# 1. Removes the NEXT_PUBLIC_API_URL_{branch} env var from the frontend project
+#
+# Required secrets:
+# - COFOUNDER_VERCEL_TOKEN: Vercel API token with permissions to manage env vars
+
+name: Delete Vercel Preview Env
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  delete-preview-env:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Delete Vercel preview environment variable
+        env:
+          COFOUNDER_VERCEL_TOKEN: ${{ secrets.COFOUNDER_VERCEL_TOKEN }}
+          BRANCH_NAME: ${{ github.head_ref }}
+          FRONTEND_PROJECT_NAME: "marathon-trainer-frontend"
+        run: python scripts/delete_vercel_preview_env.py

@@ -1,4 +1,22 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+/**
+ * Get the API base URL, using the preview backend URL in preview deployments.
+ * This enables frontend preview deployments to communicate with their corresponding
+ * backend preview deployments.
+ */
+export const getApiBaseUrl = (): string => {
+  const isPreview = process.env.NEXT_PUBLIC_VERCEL_TARGET_ENV === 'preview';
+  const previewUrl = process.env.NEXT_PUBLIC_PREVIEW_BACKEND_URL;
+
+  // In preview deployments, use the preview backend URL if available
+  if (isPreview && previewUrl) {
+    return previewUrl;
+  }
+
+  // Fall back to the standard API URL (staging/prod) or localhost for dev
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 interface FetchOptions extends RequestInit {
   requireAuth?: boolean;
